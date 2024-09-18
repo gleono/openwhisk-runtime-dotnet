@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
@@ -23,12 +23,12 @@ namespace Apache.OpenWhisk.Tests.Dotnet
         public static string SOME_VAR = System.Environment.GetEnvironmentVariable("SOME_VAR");
         public static string ANOTHER_VAR = System.Environment.GetEnvironmentVariable("ANOTHER_VAR");
 
-        public JObject Main(JObject args)
+        public JsonObject Main(JsonObject args)
         {
-            JObject message = new JObject();
+            JsonObject message = new();
             // an empty env variable is null, convert it to empty string to conform to test invariant
-            message.Add("SOME_VAR", new JValue(SOME_VAR != null ? SOME_VAR : ""));
-            message.Add("ANOTHER_VAR", new JValue(ANOTHER_VAR != null ? ANOTHER_VAR : ""));
+            message["SOME_VAR"] = JsonValue.Create(SOME_VAR != null ? SOME_VAR : "");
+            message["ANOTHER_VAR"] = JsonValue.Create(ANOTHER_VAR != null ? ANOTHER_VAR : "");
             return (message);
         }
     }

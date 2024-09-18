@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 
-using Newtonsoft.Json.Linq;
+
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
     public class Exception
     {
-        public JObject Main(JObject args)
+        public JsonObject Main(JsonObject args)
         {
             throw (new System.Exception("noooooooo"));
         }

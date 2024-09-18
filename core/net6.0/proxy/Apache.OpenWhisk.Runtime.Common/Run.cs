@@ -16,11 +16,11 @@
  */
 
 using System;
-using System.IO;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json.Linq;
 
 namespace Apache.OpenWhisk.Runtime.Common
 {
@@ -39,82 +39,59 @@ namespace Apache.OpenWhisk.Runtime.Common
             _awaitableMethod = awaitableMethod;
         }
 
-        public async Task HandleRequest(HttpContext httpContext)
+        public async Task HandleRequestAsync(HttpContext httpContext)
         {
             if (_type == null || _method == null || _constructor == null)
             {
-                await httpContext.Response.WriteError("Cannot invoke an uninitialized action.");
+                await httpContext.Response.WriteErrorAsync("Cannot invoke an uninitialized action.");
                 return;
             }
 
             try
             {
-                string body = await new StreamReader(httpContext.Request.Body).ReadToEndAsync();
+                using JsonDocument document = await JsonDocument.ParseAsync(httpContext.Request.Body);
 
-                JObject inputObject = string.IsNullOrEmpty(body) ? null : JObject.Parse(body);
+                JsonElement inputObject = document.RootElement;
+                JsonElement valueElement = inputObject.GetProperty("value");
+                JsonNode? valueNode = valueElement.ValueKind switch {
+                    JsonValueKind.Array => JsonArray.Create(valueElement),
+                    JsonValueKind.Object => JsonObject.Create(valueElement),
+                    _ => JsonValue.Create(valueElement)
+                };
+                
+                await LoadEnvironmentVariablesAsync(inputObject);
 
-                JObject valObject = null;
-                JArray valArray = null;
-
-                if (inputObject != null)
-                {
-                    valObject = inputObject["value"] as JObject;
-                    foreach (JToken token in inputObject.Children())
-                    {
-                        try
-                        {
-                            if (token.Path.Equals("value", StringComparison.InvariantCultureIgnoreCase))
-                                continue;
-                            string envKey = $"__OW_{token.Path.ToUpperInvariant()}";
-                            string envVal = token.First.ToString();
-                            Environment.SetEnvironmentVariable(envKey, envVal);
-                            //Console.WriteLine($"Set environment variable \"{envKey}\" to \"{envVal}\".");
-                        }
-                        catch (Exception)
-                        {
-                            await Console.Error.WriteLineAsync(
-                                $"Unable to set environment variable for the \"{token.Path}\" token.");
-                        }
-                    }
-                    if (valObject == null) {
-                        valArray = inputObject["value"] as JArray;
-                    }
-                }
-
-                object owObject = _constructor.Invoke(new object[] { });
+                object owObject = _constructor.Invoke(Array.Empty<object>());
 
                 try
                 {
-                    JContainer output;
-
-                    if(_awaitableMethod) {
-                        if (valObject != null) {
-                            output = (JContainer) await (dynamic) _method.Invoke(owObject, new object[] {valObject});
-                        } else {
-                            output = (JContainer) await (dynamic) _method.Invoke(owObject, new object[] {valArray});
-                        }
+                    JsonNode? output = null;
+                    if(_awaitableMethod)
+                    {
+                        var parameters = new object?[] { valueNode, httpContext.RequestAborted };
+                        output = (JsonNode?) await (dynamic?) _method.Invoke(owObject, parameters);
                     }
-                    else {
-                        if (valObject != null) {
-                            output = (JContainer) _method.Invoke(owObject, new object[] {valObject});
-                        } else {
-                            output = (JContainer) _method.Invoke(owObject, new object[] {valArray});
-                        }
+                    else
+                    {
+                        var parameters = new object?[] { valueNode };
+                        output = (JsonNode?) _method.Invoke(owObject, parameters);
                     }
 
                     if (output == null)
                     {
-                        await httpContext.Response.WriteError("The action returned null");
+                        await httpContext.Response.WriteErrorAsync("The action returned null");
                         Console.Error.WriteLine("The action returned null");
                         return;
                     }
 
-                    await httpContext.Response.WriteResponse(200, output.ToString());
+                    httpContext.Response.StatusCode = 200;
+                    using var jsonWriter = new Utf8JsonWriter(httpContext.Response.Body);
+                    output.WriteTo(jsonWriter);
                 }
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine(ex.StackTrace);
-                    await httpContext.Response.WriteError(ex.Message
+                    await httpContext.Response.WriteErrorAsync(ex.Message
 #if DEBUG
                                                           + ", " + ex.StackTrace
 #endif
@@ -124,6 +101,29 @@ namespace Apache.OpenWhisk.Runtime.Common
             finally
             {
                 Startup.WriteLogMarkers();
+            }
+        }
+
+        private async ValueTask LoadEnvironmentVariablesAsync(JsonElement input)
+        {
+            foreach (var property in input.EnumerateObject())
+            {
+                if (!property.NameEquals("value"))
+                {
+                    string envKey = $"__OW_{property.Name.ToUpperInvariant()}";
+                    string? envVal = property.Value.GetString();
+
+                    try
+                    {
+                        Environment.SetEnvironmentVariable(envKey, envVal);
+                        //Console.WriteLine($"Set environment variable \"{envKey}\" to \"{envVal}\".");
+                    }
+                    catch (Exception)
+                    {
+                        await Console.Error.WriteLineAsync(
+                            $"Unable to set environment variable for the \"{property.Name}\" token.");
+                    }
+                }
             }
         }
     }

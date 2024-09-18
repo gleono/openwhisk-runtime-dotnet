@@ -33,16 +33,17 @@ namespace Apache.OpenWhisk.Runtime.Common
         {
             PathString initPath = new PathString("/init");
             PathString runPath = new PathString("/run");
-            Init init = new Init();
-            Run run = null;
+            Init init = new();
+            Run? run = null;
+
             app.Run(async (httpContext) =>
                 {
                     if (httpContext.Request.Path.Equals(initPath))
                     {
-                        run = await init.HandleRequest(httpContext);
+                        run = await init.HandleRequestAsync(httpContext);
 
                         if (run != null)
-                            await httpContext.Response.WriteResponse(200, "OK");
+                            await httpContext.Response.WriteResponseAsync(200, "OK");
 
                         return;
                     }
@@ -51,17 +52,17 @@ namespace Apache.OpenWhisk.Runtime.Common
                     {
                         if (!init.Initialized)
                         {
-                            await httpContext.Response.WriteError("Cannot invoke an uninitialized action.");
+                            await httpContext.Response.WriteErrorAsync("Cannot invoke an uninitialized action.");
                             return;
                         }
 
                         if (run == null)
                         {
-                            await httpContext.Response.WriteError("Cannot invoke an uninitialized action.");
+                            await httpContext.Response.WriteErrorAsync("Cannot invoke an uninitialized action.");
                             return;
                         }
 
-                        await run.HandleRequest(httpContext);
+                        await run.HandleRequestAsync(httpContext);
                     }
                 }
             );

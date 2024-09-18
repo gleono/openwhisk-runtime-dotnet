@@ -16,18 +16,18 @@
  */
 
 using System;
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
     public class Unicode
     {
-        public JObject Main(JObject args)
+        public JsonObject Main(JsonObject args)
         {
             string delimiter = args["delimiter"].ToString();
-            JObject message = new JObject();
+            JsonObject message = new();
             string output = $"{delimiter} ☃ {delimiter}";
-            message.Add("winter", new JValue(output));
+            message["winter"] = JsonValue.Create(output);
             Console.WriteLine(output);
             return (message);
         }

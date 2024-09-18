@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Apache.OpenWhisk.Runtime.Do
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Apache.OpenWhisk.Runtime.Common", "Apache.OpenWhisk.Runtime.Common\Apache.OpenWhisk.Runtime.Common.csproj", "{26ADD70B-3101-4943-982C-16D380D4B044}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Apache.OpenWhisk.Runtime.Common.Tests", "Apache.OpenWhisk.Runtime.Common.Tests\Apache.OpenWhisk.Runtime.Common.Tests.csproj", "{B10C9133-5728-4D7B-A90F-CB8C251A186D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,5 +37,9 @@ Global
 		{26ADD70B-3101-4943-982C-16D380D4B044}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{26ADD70B-3101-4943-982C-16D380D4B044}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{26ADD70B-3101-4943-982C-16D380D4B044}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B10C9133-5728-4D7B-A90F-CB8C251A186D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B10C9133-5728-4D7B-A90F-CB8C251A186D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B10C9133-5728-4D7B-A90F-CB8C251A186D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B10C9133-5728-4D7B-A90F-CB8C251A186D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

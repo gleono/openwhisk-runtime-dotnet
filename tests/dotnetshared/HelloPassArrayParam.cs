@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-using System;
-using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
     public class HelloPassArrayParam
     {
-        public JArray Main(JArray args)
+        public JsonArray Main(JsonArray args)
         {
             return (args);
         }

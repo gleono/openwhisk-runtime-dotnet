@@ -15,23 +15,24 @@
  * limitations under the License.
  */
 
-using Newtonsoft.Json.Linq;
 using System.Runtime.Versioning;
 using System.Reflection;
+using System.Text.Json.Nodes;
+using System.Text.Json;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
     public class Error
     {
-        public JObject Main(JObject args)
+        public JsonObject Main(JsonObject args)
         {
-            JObject message = new JObject();
+            JsonObject message = new();
             var framework = Assembly
                 .GetEntryAssembly()?
                 .GetCustomAttribute<TargetFrameworkAttribute>()?
                 .FrameworkName;
 
-            message.Add("error", new JValue(framework));
+            message["error"] = JsonValue.Create(framework);
             return (message);
         }
     }

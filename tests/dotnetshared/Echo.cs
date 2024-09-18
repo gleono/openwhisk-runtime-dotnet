@@ -16,22 +16,24 @@
  */
 
 using System;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
     public class Echo
     {
-        public JObject Main(JObject args)
+        public JsonObject Main(JsonObject args)
         {
-            return (args);
+            return args;
         }
 
-        public async Task<JObject> MainAsync(JObject args)
+        public async Task<JsonObject> MainAsync(JsonObject args, CancellationToken cancellationToken)
         {
             await Task.Delay(10); // Just do a delay to have an async/await process occur.
-            return (args);
+            return args;
         }
     }
 }

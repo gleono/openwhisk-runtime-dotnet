@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-using Newtonsoft.Json.Linq;
+
+using System.Text.Json.Nodes;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
@@ -25,7 +26,7 @@ namespace Apache.OpenWhisk.Tests.Dotnet
         {
             System.Console.WriteLine(value);
         }
-        public JObject Main(JObject args)
+        public JsonObject Main(JsonObject args)
         {
             return (args);
         }

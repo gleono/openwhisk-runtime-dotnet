@@ -18,16 +18,11 @@
 
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
       <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    </ItemGroup>
-  
-    <ItemGroup>
-      <PackageReference Include="Newtonsoft.Json">
-        <Version>13.0.1</Version>
-      </PackageReference>
     </ItemGroup>
 
 </Project>

@@ -16,15 +16,16 @@
  */
 
 using System;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
     public class HelloArray
     {
-        public JArray Main(JObject args)
+        public JsonArray Main(JsonObject args)
         {
-            JArray jarray = new JArray();
+            JsonArray jarray = new JsonArray();
             jarray.Add("a");
             jarray.Add("b");
             return (jarray);

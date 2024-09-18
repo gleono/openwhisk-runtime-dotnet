@@ -21,9 +21,8 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
 
 namespace Apache.OpenWhisk.Runtime.Common
 {
@@ -32,9 +31,9 @@ namespace Apache.OpenWhisk.Runtime.Common
         private readonly SemaphoreSlim _initSemaphoreSlim = new SemaphoreSlim(1, 1);
 
         public bool Initialized { get; private set; }
-        private Type Type { get; set; }
-        private MethodInfo Method { get; set; }
-        private ConstructorInfo Constructor { get; set; }
+        private Type? Type { get; set; }
+        private MethodInfo? Method { get; set; }
+        private ConstructorInfo? Constructor { get; set; }
         private bool AwaitableMethod { get; set; }
 
         public Init()
@@ -45,67 +44,56 @@ namespace Apache.OpenWhisk.Runtime.Common
             Constructor = null;
         }
 
-        public async Task<Run> HandleRequest(HttpContext httpContext)
+        public async Task<Run?> HandleRequestAsync(HttpContext httpContext)
         {
             await _initSemaphoreSlim.WaitAsync();
             try
             {
                 if (Initialized)
                 {
-                    await httpContext.Response.WriteError("Cannot initialize the action more than once.");
+                    await httpContext.Response.WriteErrorAsync("Cannot initialize the action more than once.");
                     Console.Error.WriteLine("Cannot initialize the action more than once.");
-                    return (new Run(Type, Method, Constructor, AwaitableMethod));
+                    return new Run(Type!, Method!, Constructor!, AwaitableMethod);
                 }
 
-                string body = await new StreamReader(httpContext.Request.Body).ReadToEndAsync();
-                JObject inputObject = JObject.Parse(body);
-                if (!inputObject.ContainsKey("value"))
+                var initMessage = await JsonSerializer.DeserializeAsync<InitMessage>(
+                    httpContext.Request.Body,
+                    InitMessage.Options,
+                    httpContext.RequestAborted);
+
+                InitValue value = initMessage.Value;
+                if (string.IsNullOrEmpty(value.Main) || string.IsNullOrEmpty(value.Code))
                 {
-                    await httpContext.Response.WriteError("Missing main/no code to execute.");
-                    return (null);
+                    await httpContext.Response.WriteErrorAsync("Missing main/no code to execute.");
+                    return null;
                 }
 
-                JToken message = inputObject["value"];
-
-                if (message["main"] == null || message["binary"] == null || message["code"] == null)
+                if (!value.Binary)
                 {
-                    await httpContext.Response.WriteError("Missing main/no code to execute.");
-                    return (null);
+                    await httpContext.Response.WriteErrorAsync("code must be binary (zip file).");
+                    return null;
                 }
 
-                string main = message["main"].ToString();
-
-                bool binary = message["binary"].ToObject<bool>();
-
-                if (!binary)
-                {
-                    await httpContext.Response.WriteError("code must be binary (zip file).");
-                    return (null);
-                }
-
-                string[] mainParts = main.Split("::");
+                string[] mainParts = value.Main.Split("::");
                 if (mainParts.Length != 3)
                 {
-                    await httpContext.Response.WriteError("main required format is \"Assembly::Type::Function\".");
-                    return (null);
+                    await httpContext.Response.WriteErrorAsync("main required format is \"Assembly::Type::Function\".");
+                    return null;
                 }
 
                 string tempPath = Path.Combine(Environment.CurrentDirectory, Guid.NewGuid().ToString());
-                string base64Zip = message["code"].ToString();
+                string base64Zip = value.Code;
                 try
                 {
-                    using (MemoryStream stream = new MemoryStream(Convert.FromBase64String(base64Zip)))
-                    {
-                        using (ZipArchive archive = new ZipArchive(stream))
-                        {
-                            archive.ExtractToDirectory(tempPath);
-                        }
-                    }
+
+                    using var stream = new MemoryStream(Convert.FromBase64String(base64Zip));
+                    using var archive = new ZipArchive(stream);
+                    archive.ExtractToDirectory(tempPath);
                 }
                 catch (Exception)
                 {
-                    await httpContext.Response.WriteError("Unable to decompress package.");
-                    return (null);
+                    await httpContext.Response.WriteErrorAsync("Unable to decompress package.");
+                    return null;
                 }
 
                 Environment.CurrentDirectory = tempPath;
@@ -116,29 +104,29 @@ namespace Apache.OpenWhisk.Runtime.Common
 
                 if (!File.Exists(assemblyPath))
                 {
-                    await httpContext.Response.WriteError($"Unable to locate requested assembly (\"{assemblyFile}\").");
-                    return (null);
+                    await httpContext.Response.WriteErrorAsync($"Unable to locate requested assembly (\"{assemblyFile}\").");
+                    return null;
                 }
 
                 try
                 {
                     // Export init arguments as environment variables
-                    if (message["env"] != null && message["env"].HasValues)
+                    if (value.Env?.Count > 0)
                     {
-                        Dictionary<string, string> dictEnv = message["env"].ToObject<Dictionary<string, string>>();
-                        foreach (KeyValuePair<string, string> entry in dictEnv) {
+                        foreach (var (key, envValue) in value.Env) {
                             // See https://docs.microsoft.com/en-us/dotnet/api/system.environment.setenvironmentvariable
                             // If entry.Value is null or the empty string, the variable is not set
-                            Environment.SetEnvironmentVariable(entry.Key, entry.Value);
+                            Environment.SetEnvironmentVariable(key, envValue);
                         }
                     }
 
+                    
                     Assembly assembly = Assembly.LoadFrom(assemblyPath);
                     Type = assembly.GetType(mainParts[1]);
                     if (Type == null)
                     {
-                        await httpContext.Response.WriteError($"Unable to locate requested type (\"{mainParts[1]}\").");
-                        return (null);
+                        await httpContext.Response.WriteErrorAsync($"Unable to locate requested type (\"{mainParts[1]}\").");
+                        return null;
                     }
                     Method = Type.GetMethod(mainParts[2]);
                     Constructor = Type.GetConstructor(Type.EmptyTypes);
@@ -146,42 +134,42 @@ namespace Apache.OpenWhisk.Runtime.Common
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine(ex.ToString());
-                    await httpContext.Response.WriteError(ex.Message
+                    await httpContext.Response.WriteErrorAsync(ex.Message
 #if DEBUG
                                                           + ", " + ex.StackTrace
 #endif
                     );
-                    return (null);
+                    return null;
                 }
 
                 if (Method == null)
                 {
-                    await httpContext.Response.WriteError($"Unable to locate requested method (\"{mainParts[2]}\").");
-                    return (null);
+                    await httpContext.Response.WriteErrorAsync($"Unable to locate requested method (\"{mainParts[2]}\").");
+                    return null;
                 }
 
                 if (Constructor == null)
                 {
-                    await httpContext.Response.WriteError($"Unable to locate appropriate constructor for (\"{mainParts[1]}\").");
-                    return (null);
+                    await httpContext.Response.WriteErrorAsync($"Unable to locate appropriate constructor for (\"{mainParts[1]}\").");
+                    return null;
                 }
 
                 Initialized = true;
 
-                AwaitableMethod = (Method.ReturnType.GetMethod(nameof(Task.GetAwaiter)) != null);
+                AwaitableMethod = Method.ReturnType.GetMethod(nameof(Task.GetAwaiter)) != null;
 
-                return (new Run(Type, Method, Constructor, AwaitableMethod));
+                return new Run(Type, Method, Constructor, AwaitableMethod);
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine(ex.StackTrace);
-                await httpContext.Response.WriteError(ex.Message
+                await httpContext.Response.WriteErrorAsync(ex.Message
 #if DEBUG
                                                   + ", " + ex.StackTrace
 #endif
                 );
                 Startup.WriteLogMarkers();
-                return (null);
+                return null;
             }
             finally
             {

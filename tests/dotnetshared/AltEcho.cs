@@ -16,17 +16,18 @@
  */
 
 using System;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Apache.OpenWhisk.Tests.Dotnet
 {
     public class AltEcho
     {
-        public JObject Main(JObject args)
+        public JsonObject Main(JsonObject args)
         {
             Console.WriteLine("hello stdout");
             Console.Error.WriteLine("hello stderr");
-            return (args);
+            return args;
         }
     }
 }
