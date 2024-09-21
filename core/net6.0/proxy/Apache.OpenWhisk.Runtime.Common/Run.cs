@@ -85,8 +85,7 @@ namespace Apache.OpenWhisk.Runtime.Common
                     }
 
                     httpContext.Response.StatusCode = 200;
-                    using var jsonWriter = new Utf8JsonWriter(httpContext.Response.Body);
-                    output.WriteTo(jsonWriter);
+                    await httpContext.Response.WriteAsJsonAsync(output, httpContext.RequestAborted);
                 }
                 catch (Exception ex)
                 {

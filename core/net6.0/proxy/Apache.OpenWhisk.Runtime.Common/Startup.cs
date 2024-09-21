@@ -31,8 +31,8 @@ namespace Apache.OpenWhisk.Runtime.Common
 
         public void Configure(IApplicationBuilder app)
         {
-            PathString initPath = new PathString("/init");
-            PathString runPath = new PathString("/run");
+            PathString initPath = new("/init");
+            PathString runPath = new("/run");
             Init init = new();
             Run? run = null;
 

@@ -26,17 +26,16 @@ namespace Apache.OpenWhisk.Runtime.Common
     {
         public static async Task WriteResponseAsync(this HttpResponse response, int code, string content)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(content);
-            response.ContentLength = bytes.Length;
+            response.ContentLength = Encoding.UTF8.GetByteCount(content);
             response.StatusCode = code;
-            await response.WriteAsync(content);
+            await response.WriteAsync(content, response.HttpContext.RequestAborted);
         }
 
         public static async Task WriteErrorAsync(this HttpResponse response, string errorMessage)
         {
-            Dictionary<string, string> payload = new () {["error"] = errorMessage };
+            Dictionary<string, string> payload = new() { ["error"] = errorMessage };
             response.StatusCode = 502;
-            await response.WriteAsJsonAsync(payload);
+            await response.WriteAsJsonAsync(payload, response.HttpContext.RequestAborted);
         }
     }
 }
