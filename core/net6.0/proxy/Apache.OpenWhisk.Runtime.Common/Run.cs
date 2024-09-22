@@ -48,7 +48,7 @@ namespace Apache.OpenWhisk.Runtime.Common
             }
 
             try
-            {
+            { 
                 using JsonDocument document = await JsonDocument.ParseAsync(httpContext.Request.Body);
 
                 JsonElement inputObject = document.RootElement;
@@ -62,7 +62,7 @@ namespace Apache.OpenWhisk.Runtime.Common
                 await LoadEnvironmentVariablesAsync(inputObject);
 
                 object owObject = _constructor.Invoke(Array.Empty<object>());
-
+                
                 try
                 {
                     JsonNode? output = null;
@@ -110,7 +110,7 @@ namespace Apache.OpenWhisk.Runtime.Common
                 if (!property.NameEquals("value"))
                 {
                     string envKey = $"__OW_{property.Name.ToUpperInvariant()}";
-                    string? envVal = property.Value.GetString();
+                    string? envVal = property.Value.ToString();
 
                     try
                     {
