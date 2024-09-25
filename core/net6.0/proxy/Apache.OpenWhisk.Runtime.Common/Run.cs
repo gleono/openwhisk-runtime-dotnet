@@ -26,12 +26,12 @@ namespace Apache.OpenWhisk.Runtime.Common
 {
     public class Run
     {
-        private readonly Type _type;
-        private readonly MethodInfo _method;
-        private readonly ConstructorInfo _constructor;
+        private readonly Type? _type;
+        private readonly MethodInfo? _method;
+        private readonly ConstructorInfo? _constructor;
         private readonly bool _awaitableMethod;
 
-        public Run(Type type, MethodInfo method, ConstructorInfo constructor, bool awaitableMethod)
+        public Run(Type? type, MethodInfo? method, ConstructorInfo? constructor, bool awaitableMethod)
         {
             _type = type;
             _method = method;
@@ -51,10 +51,10 @@ namespace Apache.OpenWhisk.Runtime.Common
             {
                 string body = await new StreamReader(httpContext.Request.Body).ReadToEndAsync();
 
-                JObject inputObject = string.IsNullOrEmpty(body) ? null : JObject.Parse(body);
+                JObject? inputObject = string.IsNullOrEmpty(body) ? null : JObject.Parse(body);
 
-                JObject valObject = null;
-                JArray valArray = null;
+                JObject? valObject = null;
+                JArray? valArray = null;
 
                 if (inputObject != null)
                 {
@@ -66,7 +66,7 @@ namespace Apache.OpenWhisk.Runtime.Common
                             if (token.Path.Equals("value", StringComparison.InvariantCultureIgnoreCase))
                                 continue;
                             string envKey = $"__OW_{token.Path.ToUpperInvariant()}";
-                            string envVal = token.First.ToString();
+                            string? envVal = token.First?.ToString();
                             Environment.SetEnvironmentVariable(envKey, envVal);
                             //Console.WriteLine($"Set environment variable \"{envKey}\" to \"{envVal}\".");
                         }
@@ -85,20 +85,20 @@ namespace Apache.OpenWhisk.Runtime.Common
 
                 try
                 {
-                    JContainer output;
+                    JContainer? output;
 
                     if(_awaitableMethod) {
                         if (valObject != null) {
-                            output = (JContainer) await (dynamic) _method.Invoke(owObject, new object[] {valObject});
+                            output = (JContainer?) await (dynamic?) _method.Invoke(owObject, new object?[] {valObject});
                         } else {
-                            output = (JContainer) await (dynamic) _method.Invoke(owObject, new object[] {valArray});
+                            output = (JContainer?) await (dynamic?) _method.Invoke(owObject, new object?[] {valArray});
                         }
                     }
                     else {
                         if (valObject != null) {
-                            output = (JContainer) _method.Invoke(owObject, new object[] {valObject});
+                            output = (JContainer?) _method.Invoke(owObject, new object?[] {valObject});
                         } else {
-                            output = (JContainer) _method.Invoke(owObject, new object[] {valArray});
+                            output = (JContainer?) _method.Invoke(owObject, new object?[] {valArray});
                         }
                     }
 
