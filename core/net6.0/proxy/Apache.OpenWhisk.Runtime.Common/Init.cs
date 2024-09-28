@@ -21,7 +21,6 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 
@@ -67,9 +66,9 @@ namespace Apache.OpenWhisk.Runtime.Common
                 }
 
                 JObject valueObj = (JObject)message;
-                string main = valueObj.TryGetValue("main", out var mainToken) ? mainToken.ToString() : string.Empty;
-                string code = valueObj.TryGetValue("code", out var codeToken) ? codeToken.ToString() : string.Empty;
-                bool binary = valueObj.TryGetValue("binary", out var binaryToken) && binaryToken.ToObject<bool>();
+                string main = valueObj.TryGetValue("main", out JToken? mainToken) ? mainToken.ToString() : string.Empty;
+                string code = valueObj.TryGetValue("code", out JToken? codeToken) ? codeToken.ToString() : string.Empty;
+                bool binary = valueObj.TryGetValue("binary", out JToken? binaryToken) && binaryToken.ToObject<bool>();
 
                 if (string.IsNullOrWhiteSpace(main) || string.IsNullOrWhiteSpace(code))
                 {
@@ -121,17 +120,13 @@ namespace Apache.OpenWhisk.Runtime.Common
 
                 try
                 {
-                    JToken? envToken = valueObj["env"];
                     // Export init arguments as environment variables
-                    if (envToken?.HasValues ?? false)
+                    if (valueObj.TryGetValue("env", out JToken? value) && value is JObject dictEnv)
                     {
-                        var dictEnv = envToken.ToObject<Dictionary<string, string?>>();
-                        if (dictEnv != null) {
-                            foreach (var (key, value) in dictEnv) {
-                                // See https://docs.microsoft.com/en-us/dotnet/api/system.environment.setenvironmentvariable
-                                // If entry.Value is null or the empty string, the variable is not set
-                                Environment.SetEnvironmentVariable(key, value);
-                            }
+                        foreach ((string key, JToken? varValue) in dictEnv) {
+                            // See https://docs.microsoft.com/en-us/dotnet/api/system.environment.setenvironmentvariable
+                            // If entry.Value is null or the empty string, the variable is not set
+                            Environment.SetEnvironmentVariable(key, varValue?.ToString());
                         }
                     }
 
