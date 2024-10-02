@@ -84,8 +84,7 @@ namespace Apache.OpenWhisk.Runtime.Common
                         return;
                     }
 
-                    httpContext.Response.StatusCode = 200;
-                    await httpContext.Response.WriteAsJsonAsync(output, httpContext.RequestAborted);
+                    await httpContext.Response.WriteResponseAsync(200, output.ToString());
                 }
                 catch (Exception ex)
                 {

@@ -119,7 +119,6 @@ namespace Apache.OpenWhisk.Runtime.Common
                             Environment.SetEnvironmentVariable(key, envValue);
                         }
                     }
-
                     
                     Assembly assembly = Assembly.LoadFrom(assemblyPath);
                     Type = assembly.GetType(mainParts[1]);
