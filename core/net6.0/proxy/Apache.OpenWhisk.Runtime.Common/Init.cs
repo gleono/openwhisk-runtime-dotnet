@@ -58,8 +58,7 @@ namespace Apache.OpenWhisk.Runtime.Common
 
                 string body = await new StreamReader(httpContext.Request.Body).ReadToEndAsync();
                 JObject inputObject = JObject.Parse(body);
-                JToken? message;
-                if (!inputObject.TryGetValue("value", out message) || message is not JObject)
+                if (!inputObject.TryGetValue("value", out JToken? message) || message is not JObject)
                 {
                     await httpContext.Response.WriteError("Missing main/no code to execute.");
                     return null;
