@@ -49,7 +49,8 @@ namespace Apache.OpenWhisk.Runtime.Common
 
             try
             {
-                string body = await new StreamReader(httpContext.Request.Body).ReadToEndAsync();
+                using StreamReader reader = new(httpContext.Request.Body);
+                string body = await reader.ReadToEndAsync();
 
                 JObject? inputObject = string.IsNullOrEmpty(body) ? null : JObject.Parse(body);
 
@@ -81,7 +82,7 @@ namespace Apache.OpenWhisk.Runtime.Common
                     }
                 }
 
-                object owObject = _constructor.Invoke(new object[] { });
+                object owObject = _constructor.Invoke(Array.Empty<object>());
 
                 try
                 {

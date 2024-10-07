@@ -28,20 +28,20 @@ namespace Apache.OpenWhisk.Runtime.Common
 {
     public class Init
     {
-        private readonly SemaphoreSlim _initSemaphoreSlim = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _initSemaphoreSlim = new(initialCount: 1, maxCount: 1);
+        private Type? _type;
+        private MethodInfo? _method;
+        private ConstructorInfo? _constructor;
+        private bool _awaitableMethod;
 
         public bool Initialized { get; private set; }
-        private Type? Type { get; set; }
-        private MethodInfo? Method { get; set; }
-        private ConstructorInfo? Constructor { get; set; }
-        private bool AwaitableMethod { get; set; }
 
         public Init()
         {
             Initialized = false;
-            Type = null;
-            Method = null;
-            Constructor = null;
+            _type = null;
+            _method = null;
+            _constructor = null;
         }
 
         public async Task<Run?> HandleRequest(HttpContext httpContext)
@@ -53,18 +53,18 @@ namespace Apache.OpenWhisk.Runtime.Common
                 {
                     await httpContext.Response.WriteError("Cannot initialize the action more than once.");
                     Console.Error.WriteLine("Cannot initialize the action more than once.");
-                    return new Run(Type, Method, Constructor, AwaitableMethod);
+                    return new Run(_type, _method, _constructor, _awaitableMethod);
                 }
 
-                string body = await new StreamReader(httpContext.Request.Body).ReadToEndAsync();
+                using StreamReader reader = new(httpContext.Request.Body);
+                string body = await reader.ReadToEndAsync();
                 JObject inputObject = JObject.Parse(body);
-                if (!inputObject.TryGetValue("value", out JToken? message) || message is not JObject)
+                if (!inputObject.TryGetValue("value", out JToken? message) || message is not JObject valueObj)
                 {
                     await httpContext.Response.WriteError("Missing main/no code to execute.");
                     return null;
                 }
 
-                JObject valueObj = (JObject)message;
                 string main = valueObj.TryGetValue("main", out JToken? mainToken) ? mainToken.ToString() : string.Empty;
                 string code = valueObj.TryGetValue("code", out JToken? codeToken) ? codeToken.ToString() : string.Empty;
                 bool binary = valueObj.TryGetValue("binary", out JToken? binaryToken) && binaryToken.ToObject<bool>();
@@ -91,13 +91,9 @@ namespace Apache.OpenWhisk.Runtime.Common
                 string tempPath = Path.Combine(Environment.CurrentDirectory, Guid.NewGuid().ToString());
                 try
                 {
-                    using (MemoryStream stream = new MemoryStream(Convert.FromBase64String(code)))
-                    {
-                        using (ZipArchive archive = new ZipArchive(stream))
-                        {
-                            archive.ExtractToDirectory(tempPath);
-                        }
-                    }
+                    using MemoryStream stream = new(Convert.FromBase64String(code));
+                    using ZipArchive archive = new(stream);
+                    archive.ExtractToDirectory(tempPath);
                 }
                 catch (Exception)
                 {
@@ -130,14 +126,14 @@ namespace Apache.OpenWhisk.Runtime.Common
                     }
 
                     Assembly assembly = Assembly.LoadFrom(assemblyPath);
-                    Type = assembly.GetType(mainParts[1]);
-                    if (Type == null)
+                    _type = assembly.GetType(mainParts[1]);
+                    if (_type == null)
                     {
                         await httpContext.Response.WriteError($"Unable to locate requested type (\"{mainParts[1]}\").");
                         return null;
                     }
-                    Method = Type.GetMethod(mainParts[2]);
-                    Constructor = Type.GetConstructor(Type.EmptyTypes);
+                    _method = _type.GetMethod(mainParts[2]);
+                    _constructor = _type.GetConstructor(Type.EmptyTypes);
                 }
                 catch (Exception ex)
                 {
@@ -150,13 +146,13 @@ namespace Apache.OpenWhisk.Runtime.Common
                     return null;
                 }
 
-                if (Method == null)
+                if (_method == null)
                 {
                     await httpContext.Response.WriteError($"Unable to locate requested method (\"{mainParts[2]}\").");
                     return null;
                 }
 
-                if (Constructor == null)
+                if (_constructor == null)
                 {
                     await httpContext.Response.WriteError($"Unable to locate appropriate constructor for (\"{mainParts[1]}\").");
                     return null;
@@ -164,9 +160,9 @@ namespace Apache.OpenWhisk.Runtime.Common
 
                 Initialized = true;
 
-                AwaitableMethod = Method.ReturnType.GetMethod(nameof(Task.GetAwaiter)) != null;
+                _awaitableMethod = _method.ReturnType.GetMethod(nameof(Task.GetAwaiter)) != null;
 
-                return new Run(Type, Method, Constructor, AwaitableMethod);
+                return new Run(_type, _method, _constructor, _awaitableMethod);
             }
             catch (Exception ex)
             {
