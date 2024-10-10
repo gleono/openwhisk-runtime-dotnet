@@ -116,12 +116,12 @@ namespace Apache.OpenWhisk.Runtime.Common
                 try
                 {
                     // Export init arguments as environment variables
-                    if (valueObj.TryGetValue("env", out JToken? value) && value is JObject dictEnv)
+                    if (valueObj.TryGetValue("env", out JToken? values) && values is JObject dictEnv)
                     {
-                        foreach ((string key, JToken? varValue) in dictEnv) {
+                        foreach ((string envKey, JToken? envVal) in dictEnv) {
                             // See https://docs.microsoft.com/en-us/dotnet/api/system.environment.setenvironmentvariable
-                            // If entry.Value is null or the empty string, the variable is not set
-                            Environment.SetEnvironmentVariable(key, varValue?.ToString());
+                            // If envVal is null or the empty string, the variable is not set
+                            Environment.SetEnvironmentVariable(envKey, envVal?.ToString());
                         }
                     }
 
